@@ -15,6 +15,8 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/properties', require('./routes/property'));
+app.use('/api/tenant', require('./routes/tenant'));
+app.use('/api/reviews', require('./routes/review'));
 
 // MongoDB Connection
 mongoose

@@ -1,9 +1,22 @@
 const Property = require('../models/Property');
+const Booking = require('../models/Booking');
+const Review = require('../models/Review');
 
 /**
  * Arman
  * propertyController — handles all CRUD operations for property listings.
  *   getProperties  : public, returns all listings; supports ?search= query (name/location/address/type)
+ *   getPropertyById: public, returns detailed info for a single property (landlord, tenants, reviews)
+ *   createProperty : landlord-only, creates a new listing tied to req.user._id
+ *   getMyListings  : landlord-only, returns only the logged-in landlord's own listings
+ *   deleteProperty : landlord-only, deletes a listing after verifying ownership
+ */
+
+/**
+ * Arman
+ * propertyController — handles all CRUD operations for property listings.
+ *   getProperties  : public, returns all listings; supports ?search= query (name/location/address/type)
+ *   getPropertyById: public, returns detailed info for a single property (landlord, tenants, reviews)
  *   createProperty : landlord-only, creates a new listing tied to req.user._id
  *   getMyListings  : landlord-only, returns only the logged-in landlord's own listings
  *   deleteProperty : landlord-only, deletes a listing after verifying ownership
@@ -30,6 +43,42 @@ const getProperties = async (req, res) => {
       .populate('landlord', 'name phone email')
       .sort({ createdAt: -1 });
     res.json(properties);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get a single property by ID with full details
+// @route   GET /api/properties/:id
+// @access  Public
+const getPropertyById = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id)
+      .populate('landlord', 'name phone email');
+
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
+    // Get active bookings (not cancelled) for this property to find current tenants
+    const activeBookings = await Booking.find({
+      property: req.params.id,
+      status: { $ne: 'cancelled' }
+    }).populate('tenant', 'name email phone');
+
+    // Get all reviews for this property
+    const reviews = await Review.find({ property: req.params.id })
+      .populate('tenant', 'name _id')
+      .sort({ createdAt: -1 });
+
+    console.log('Property reviews:', reviews);
+
+    res.json({
+      ...property.toObject(),
+      tenants: activeBookings.map(booking => booking.tenant),
+      reviews,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -104,4 +153,4 @@ const deleteProperty = async (req, res) => {
   }
 };
 
-module.exports = { getProperties, createProperty, getMyListings, deleteProperty };
+module.exports = { getProperties, getPropertyById, createProperty, getMyListings, deleteProperty };

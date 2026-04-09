@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const {
   getProperties,
+  getPropertyById,
   createProperty,
   getMyListings,
   deleteProperty,
@@ -29,6 +30,9 @@ router.get('/', getProperties);
 
 // @route   GET /api/properties/my
 router.get('/my', protect, landlordOnly, getMyListings);
+
+// @route   GET /api/properties/:id (must come after /my)
+router.get('/:id', getPropertyById);
 
 // @route   POST /api/properties
 router.post('/', protect, landlordOnly, createProperty);
