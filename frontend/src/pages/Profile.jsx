@@ -17,16 +17,29 @@ const Profile = () => {
 
   const [form, setForm] = useState({ name: '', phone: '', password: '' })
   const [listings, setListings] = useState([])
+  const [bookings, setBookings] = useState([])
+  const [landlordBookings, setLandlordBookings] = useState([]) // For landlord's property bookings
   const [saving, setSaving] = useState(false)
   const [loadingListings, setLoadingListings] = useState(false)
+  const [loadingBookings, setLoadingBookings] = useState(false)
+  const [loadingLandlordBookings, setLoadingLandlordBookings] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!user) { navigate('/login'); return }
+    if (!user) { 
+      navigate('/login')
+      return 
+    }
     setForm({ name: user.name, phone: user.phone || '', password: '' })
-    if (user.role === 'landlord') fetchMyListings()
-  }, [user])
+    if (user.role === 'landlord') {
+      fetchMyListings()
+      fetchLandlordBookings()
+    } else if (user.role === 'tenant') {
+      fetchMyBookings()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, navigate])
 
   const fetchMyListings = async () => {
     setLoadingListings(true)
@@ -37,6 +50,33 @@ const Profile = () => {
       // silent fail
     } finally {
       setLoadingListings(false)
+    }
+  }
+
+  const fetchLandlordBookings = async () => {
+    setLoadingLandlordBookings(true)
+    try {
+      const { data } = await axios.get('/api/tenant/landlord/bookings')
+      console.log('Landlord bookings fetched:', data)
+      setLandlordBookings(data)
+    } catch (err) {
+      console.error('Error fetching landlord bookings:', err)
+    } finally {
+      setLoadingLandlordBookings(false)
+    }
+  }
+
+  const fetchMyBookings = async () => {
+    setLoadingBookings(true)
+    try {
+      const { data } = await axios.get('/api/tenant/bookings')
+      console.log('Bookings fetched:', data)
+      setBookings(data)
+    } catch (err) {
+      console.error('Error fetching bookings:', err)
+      setError('Failed to load bookings')
+    } finally {
+      setLoadingBookings(false)
     }
   }
 
@@ -74,12 +114,48 @@ const Profile = () => {
     }
   }
 
+  const handleConfirmBooking = async (id) => {
+    if (!window.confirm('Confirm this booking request?')) return
+    try {
+      await axios.put(`/api/tenant/landlord/bookings/${id}/confirm`)
+      fetchLandlordBookings()
+      setSuccess('Booking confirmed successfully!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to confirm booking')
+    }
+  }
+
+  const handleRejectBooking = async (id) => {
+    if (!window.confirm('Reject this booking request?')) return
+    try {
+      await axios.put(`/api/tenant/landlord/bookings/${id}/reject`)
+      fetchLandlordBookings()
+      setSuccess('Booking rejected successfully!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to reject booking')
+    }
+  }
+
+  const handleCancelBooking = async (id) => {
+    if (!window.confirm('Cancel this booking?')) return
+    try {
+      await axios.put(`/api/tenant/bookings/${id}/cancel`)
+      fetchMyBookings()
+      setSuccess('Booking cancelled successfully!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to cancel booking')
+    }
+  }
+
   if (!user) return null
 
   return (
     <div className="profile-page">
       <Navbar />
-      <div className="profile-content">
+      <div className={user.role === 'tenant' ? 'profile-content-tenant' : 'profile-content'}>
 
         {/* Profile Card */}
         <div className="profile-card">
@@ -135,52 +211,175 @@ const Profile = () => {
           </form>
         </div>
 
-        {/* My Listings (Landlord only) */}
-        {user.role === 'landlord' && (
+        {/* Tenant: My Bookings */}
+        {user.role === 'tenant' && (
           <div className="my-listings-section">
             <div className="my-listings-header">
-              <h3>My Listings</h3>
-              <Link to="/create-listing" className="btn btn-primary">
-                + Add New Listing
-              </Link>
+              <h3>My Bookings</h3>
             </div>
 
-            {loadingListings ? (
-              <p className="empty-state">Loading listings…</p>
-            ) : listings.length === 0 ? (
+            {loadingBookings ? (
+              <p className="empty-state">Loading bookings…</p>
+            ) : bookings.filter(b => b.status !== 'cancelled').length === 0 ? (
               <div className="empty-state">
-                <p>You haven't added any listings yet.</p>
-                <Link to="/create-listing" className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>
-                  Create Your First Listing
-                </Link>
+                <p>You haven't booked any properties yet.</p>
               </div>
             ) : (
               <div className="my-listings-grid">
-                {listings.map((p) => (
-                  <div key={p._id} className="my-listing-card">
-                    <div className="my-listing-img">
-                      {p.images?.[0] ? (
-                        <img src={p.images[0]} alt={p.name} />
-                      ) : (
-                        <div className="img-placeholder">🏠</div>
-                      )}
+                {bookings
+                  .filter(booking => booking.status !== 'cancelled')
+                  .map((booking) => {
+                    // Skip if property is deleted
+                    if (!booking.property) return null;
+                    
+                    return (
+                    <div key={booking._id} className="my-listing-card">
+                      <div className="my-listing-img">
+                        {booking.property?.images?.[0] ? (
+                          <img src={booking.property.images[0]} alt={booking.property.name} />
+                        ) : (
+                          <div className="img-placeholder">🏠</div>
+                        )}
+                      </div>
+                      <div className="my-listing-info">
+                        <h4>{booking.property?.name || 'Property'}</h4>
+                        <p className="listing-meta">{booking.property?.type || 'N/A'} · {booking.property?.location || 'N/A'}</p>
+                        <p className="listing-rent">৳{booking.property?.rent?.toLocaleString() || '0'}<span>/mo</span></p>
+                        <p className="booking-dates">
+                          <strong>Check-in:</strong> {new Date(booking.checkInDate).toLocaleDateString()}<br/>
+                          <strong>Check-out:</strong> {new Date(booking.checkOutDate).toLocaleDateString()}
+                        </p>
+                        <span className={`badge badge-${booking.status}`}>{booking.status}</span>
+                      </div>
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleCancelBooking(booking._id)}
+                      >
+                        Cancel
+                      </button>
                     </div>
-                    <div className="my-listing-info">
-                      <h4>{p.name}</h4>
-                      <p className="listing-meta">{p.type} · {p.location}</p>
-                      <p className="listing-rent">৳{p.rent.toLocaleString()}<span>/mo</span></p>
-                    </div>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => handleDelete(p._id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
+        )}
+
+        {/* My Listings (Landlord only) */}
+        {user.role === 'landlord' && (
+          <>
+            {/* Booking Requests Section */}
+            <div className="my-listings-section">
+              <div className="my-listings-header">
+                <h3>Booking Requests</h3>
+              </div>
+
+              {loadingLandlordBookings ? (
+                <p className="empty-state">Loading booking requests…</p>
+              ) : landlordBookings.filter(b => b.status === 'pending').length === 0 ? (
+                <div className="empty-state">
+                  <p>No pending booking requests.</p>
+                </div>
+              ) : (
+                <div className="my-listings-grid">
+                  {landlordBookings
+                    .filter(booking => booking.status === 'pending')
+                    .map((booking) => {
+                      if (!booking.property) return null;
+                      
+                      return (
+                      <div key={booking._id} className="my-listing-card booking-request-card">
+                        <div className="my-listing-img">
+                          {booking.property?.images?.[0] ? (
+                            <img src={booking.property.images[0]} alt={booking.property.name} />
+                          ) : (
+                            <div className="img-placeholder">🏠</div>
+                          )}
+                        </div>
+                        <div className="my-listing-info">
+                          <h4>{booking.property?.name || 'Property'}</h4>
+                          <p className="listing-meta">{booking.property?.type || 'N/A'} · {booking.property?.location || 'N/A'}</p>
+                          <p className="listing-rent">৳{booking.property?.rent?.toLocaleString() || '0'}<span>/mo</span></p>
+                          <p className="booking-tenant">
+                            <strong>Tenant:</strong> {booking.tenant?.name || 'Unknown'}<br/>
+                            <strong>Email:</strong> {booking.tenant?.email || 'N/A'}<br/>
+                            {booking.tenant?.phone && (
+                              <><strong>Phone:</strong> {booking.tenant.phone}<br/></>
+                            )}
+                          </p>
+                          <p className="booking-dates">
+                            <strong>Check-in:</strong> {new Date(booking.checkInDate).toLocaleDateString()}<br/>
+                            <strong>Check-out:</strong> {new Date(booking.checkOutDate).toLocaleDateString()}
+                          </p>
+                          <span className="badge badge-pending">{booking.status}</span>
+                        </div>
+                        <div className="booking-actions">
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => handleConfirmBooking(booking._id)}
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => handleRejectBooking(booking._id)}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* My Listings Section */}
+            <div className="my-listings-section">
+              <div className="my-listings-header">
+                <h3>My Listings</h3>
+                <Link to="/create-listing" className="btn btn-primary">
+                  + Add New Listing
+                </Link>
+              </div>
+
+              {loadingListings ? (
+                <p className="empty-state">Loading listings…</p>
+              ) : listings.length === 0 ? (
+                <div className="empty-state">
+                  <p>You haven't added any listings yet.</p>
+                  <Link to="/create-listing" className="btn btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>
+                    Create Your First Listing
+                  </Link>
+                </div>
+              ) : (
+                <div className="my-listings-grid">
+                  {listings.map((p) => (
+                    <div key={p._id} className="my-listing-card">
+                      <div className="my-listing-img">
+                        {p.images?.[0] ? (
+                          <img src={p.images[0]} alt={p.name} />
+                        ) : (
+                          <div className="img-placeholder">🏠</div>
+                        )}
+                      </div>
+                      <div className="my-listing-info">
+                        <h4>{p.name}</h4>
+                        <p className="listing-meta">{p.type} · {p.location}</p>
+                        <p className="listing-rent">৳{p.rent.toLocaleString()}<span>/mo</span></p>
+                      </div>
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDelete(p._id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

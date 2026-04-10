@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import AdminDashboard from './pages/AdminDashboard'
 import Profile from './pages/Profile'
 import CreateListing from './pages/CreateListing'
+import PropertyDetail from './pages/PropertyDetail'
 
 const PrivateRoute = ({ children, adminRequired = false }) => {
   const { user, loading } = useAuth()
@@ -22,6 +23,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/property/:id" element={<PropertyDetail />} />
         <Route
           path="/admin"
           element={
