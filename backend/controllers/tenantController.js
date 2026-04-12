@@ -1,6 +1,8 @@
 const Booking = require('../models/Booking');
 const Property = require('../models/Property');
 const User = require('../models/User');
+// NOTIFICATION FEATURE — Import notification service for email alerts
+const { sendBookingRequestEmail, sendBookingAcceptedEmail, sendBookingRejectedEmail, notifyWishlistOnBooking } = require('../services/notificationService');
 
 
 const getMyBookings = async (req, res) => {
@@ -48,6 +50,19 @@ const createBooking = async (req, res) => {
     });
 
     const populatedBooking = await booking.populate('property');
+    
+    // NOTIFICATION FEATURE — Send booking request email to tenant with landlord contact info
+    const tenant = await User.findById(req.user._id);
+    const landlord = await User.findById(property.landlord);
+    await sendBookingRequestEmail(
+      tenant.email,
+      tenant.name,
+      property.name,
+      checkInDate,
+      checkOutDate,
+      { name: landlord.name, email: landlord.email, phone: landlord.phone }
+    );
+    
     res.status(201).json(populatedBooking);
   } catch (err) {
     console.error(err);
@@ -118,6 +133,28 @@ const confirmBooking = async (req, res) => {
     await booking.save();
     
     const populatedBooking = await booking.populate('tenant', 'name email phone');
+    
+    // NOTIFICATION FEATURE — Send booking acceptance email to tenant with landlord contact info
+    const tenant = await User.findById(booking.tenant._id);
+    const property = await Property.findById(booking.property._id);
+    const landlord = await User.findById(req.user._id);
+    await sendBookingAcceptedEmail(
+      tenant.email,
+      tenant.name,
+      property.name,
+      booking.checkInDate,
+      booking.checkOutDate,
+      { name: landlord.name, email: landlord.email, phone: landlord.phone }
+    );
+    
+    // NOTIFICATION FEATURE — Notify all other tenants with wishlisted property about the booking with dates
+    await notifyWishlistOnBooking(
+      booking.property._id,
+      booking.checkInDate,
+      booking.checkOutDate,
+      booking.tenant._id
+    );
+    
     res.json(populatedBooking);
   } catch (err) {
     console.error(err);
@@ -128,7 +165,7 @@ const confirmBooking = async (req, res) => {
 
 const rejectBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id).populate('property');
+    const booking = await Booking.findById(req.params.id).populate('property').populate('tenant');
     
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
@@ -141,6 +178,19 @@ const rejectBooking = async (req, res) => {
 
     booking.status = 'cancelled';
     await booking.save();
+    
+    // NOTIFICATION FEATURE — Send booking rejection email to tenant with landlord contact info
+    const tenant = booking.tenant;
+    const property = booking.property;
+    const landlord = await User.findById(req.user._id);
+    await sendBookingRejectedEmail(
+      tenant.email,
+      tenant.name,
+      property.name,
+      booking.checkInDate,
+      booking.checkOutDate,
+      { name: landlord.name, email: landlord.email, phone: landlord.phone }
+    );
     
     const populatedBooking = await booking.populate('tenant', 'name email phone');
     res.json(populatedBooking);

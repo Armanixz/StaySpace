@@ -48,8 +48,23 @@ export const AuthProvider = ({ children }) => {
     return updated
   }
 
+  const getWishlist = async () => {
+    const { data } = await axios.get('/api/tenant/wishlist')
+    return data
+  }
+
+  const addToWishlist = async (propertyId) => {
+    const { data } = await axios.post(`/api/tenant/wishlist/${propertyId}`)
+    return data
+  }
+
+  const removeFromWishlist = async (propertyId) => {
+    const { data } = await axios.delete(`/api/tenant/wishlist/${propertyId}`)
+    return data
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, loading, getWishlist, addToWishlist, removeFromWishlist }}>
       {children}
     </AuthContext.Provider>
   )

@@ -1,6 +1,9 @@
 const Property = require('../models/Property');
 const Booking = require('../models/Booking');
 const Review = require('../models/Review');
+const User = require('../models/User');
+// NOTIFICATION FEATURE — Import notification service for price update emails
+const { notifyWishlistOnPriceUpdate } = require('../services/notificationService');
 
 /**
  * Arman
@@ -133,6 +136,46 @@ const getMyListings = async (req, res) => {
   }
 };
 
+// NOTIFICATION FEATURE — Update a property (landlord only)
+// @route   PUT /api/properties/:id
+// @access  Landlord
+const updateProperty = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
+    if (property.landlord.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to update this property' });
+    }
+
+    const oldPrice = property.rent;
+    const newPrice = req.body.rent;
+
+    // Update property fields
+    Object.assign(property, req.body);
+    await property.save();
+
+    // NOTIFICATION FEATURE — Send price update emails if rent changed
+    if (oldPrice !== newPrice && req.body.rent) {
+      const landlord = await User.findById(req.user._id);
+      await notifyWishlistOnPriceUpdate(
+        property._id,
+        oldPrice,
+        newPrice,
+        { name: landlord.name, email: landlord.email, phone: landlord.phone }
+      );
+    }
+
+    res.json({ message: 'Property updated', property });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // @desc    Delete a property (own listings only)
 // @route   DELETE /api/properties/:id
 // @access  Landlord
@@ -153,4 +196,4 @@ const deleteProperty = async (req, res) => {
   }
 };
 
-module.exports = { getProperties, getPropertyById, createProperty, getMyListings, deleteProperty };
+module.exports = { getProperties, getPropertyById, createProperty, getMyListings, deleteProperty, updateProperty };

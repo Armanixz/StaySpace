@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 
 const PropertyDetail = () => {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { user, getWishlist, addToWishlist, removeFromWishlist } = useAuth()
   const navigate = useNavigate()
   
   const [property, setProperty] = useState(null)
@@ -15,6 +15,8 @@ const PropertyDetail = () => {
   const [error, setError] = useState(null)
   const [hasBooked, setHasBooked] = useState(false)
   const [userRating, setUserRating] = useState(null) // User's existing rating
+  const [inWishlist, setInWishlist] = useState(false)
+  const [togglingWishlist, setTogglingWishlist] = useState(false)
   
   // Rating form state
   const [showRatingForm, setShowRatingForm] = useState(false)
@@ -31,6 +33,7 @@ const PropertyDetail = () => {
     fetchPropertyDetails()
     if (user?.role === 'tenant') {
       checkIfBooked()
+      checkWishlistStatus()
     }
   }, [id, user])
 
@@ -84,6 +87,38 @@ const PropertyDetail = () => {
       setHasBooked(booked)
     } catch (err) {
       console.error('Error checking bookings:', err)
+    }
+  }
+
+  const checkWishlistStatus = async () => {
+    try {
+      const wishlist = await getWishlist()
+      const isInWishlist = wishlist.some(item => item._id === id)
+      setInWishlist(isInWishlist)
+    } catch (err) {
+      console.error('Error checking wishlist:', err)
+    }
+  }
+
+  const handleToggleWishlist = async () => {
+    if (!user || user.role !== 'tenant') {
+      alert('Please login as a tenant to save properties')
+      return
+    }
+
+    setTogglingWishlist(true)
+    try {
+      if (inWishlist) {
+        await removeFromWishlist(id)
+        setInWishlist(false)
+      } else {
+        await addToWishlist(id)
+        setInWishlist(true)
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update wishlist')
+    } finally {
+      setTogglingWishlist(false)
     }
   }
 
@@ -439,6 +474,14 @@ const PropertyDetail = () => {
                     Book This Property
                   </button>
                 )}
+                <button
+                  className={`btn btn-block ${inWishlist ? 'btn-wishlist-active' : 'btn-wishlist'}`}
+                  onClick={handleToggleWishlist}
+                  disabled={togglingWishlist}
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  {togglingWishlist ? 'Updating...' : (inWishlist ? '❤ Remove from Wishlist' : '🤍 Save to Wishlist')}
+                </button>
               </>
             )}
             

@@ -7,6 +7,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import Profile from './pages/Profile'
 import CreateListing from './pages/CreateListing'
 import PropertyDetail from './pages/PropertyDetail'
+import Wishlist from './pages/Wishlist'
 
 const PrivateRoute = ({ children, adminRequired = false }) => {
   const { user, loading } = useAuth()
@@ -45,6 +46,14 @@ function App() {
           element={
             <PrivateRoute>
               <CreateListing />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/wishlist"
+          element={
+            <PrivateRoute>
+              <Wishlist />
             </PrivateRoute>
           }
         />

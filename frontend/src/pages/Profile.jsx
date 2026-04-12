@@ -4,6 +4,7 @@
  *   - Edit profile: update name, phone, or password via PUT /api/auth/profile
  *   - Landlords also see their own listings (fetched from GET /api/properties/my)
  *     with a delete button and a link to create a new listing
+ *   - Tenants can view their bookings
  */
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -25,6 +26,10 @@ const Profile = () => {
   const [loadingLandlordBookings, setLoadingLandlordBookings] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  // PROFILE FEATURE — State for edit price modal
+  const [editingPropertyId, setEditingPropertyId] = useState(null)
+  const [editPrice, setEditPrice] = useState('')
+  const [updatingPrice, setUpdatingPrice] = useState(false)
 
   useEffect(() => {
     if (!user) { 
@@ -111,6 +116,41 @@ const Profile = () => {
       setListings((prev) => prev.filter((p) => p._id !== id))
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete')
+    }
+  }
+
+  // PROFILE FEATURE — Handle edit price modal open/close
+  const handleOpenEditPrice = (property) => {
+    setEditingPropertyId(property._id)
+    setEditPrice(property.rent)
+  }
+
+  const handleCloseEditPrice = () => {
+    setEditingPropertyId(null)
+    setEditPrice('')
+  }
+
+  // PROFILE FEATURE — Handle update property price
+  const handleUpdatePrice = async () => {
+    if (!editPrice || editPrice < 0) {
+      alert('Please enter a valid price')
+      return
+    }
+    setUpdatingPrice(true)
+    try {
+      const response = await axios.put(`/api/properties/${editingPropertyId}`, {
+        rent: parseFloat(editPrice)
+      })
+      setListings((prev) =>
+        prev.map((p) => (p._id === editingPropertyId ? response.data.property : p))
+      )
+      setSuccess('Price updated successfully!')
+      handleCloseEditPrice()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update price')
+    } finally {
+      setUpdatingPrice(false)
     }
   }
 
@@ -368,12 +408,26 @@ const Profile = () => {
                         <p className="listing-meta">{p.type} · {p.location}</p>
                         <p className="listing-rent">৳{p.rent.toLocaleString()}<span>/mo</span></p>
                       </div>
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => handleDelete(p._id)}
-                      >
-                        Delete
-                      </button>
+                      <div className="listing-actions">
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => navigate(`/property/${p._id}`)}
+                        >
+                          View
+                        </button>
+                        <button
+                          className="btn btn-info"
+                          onClick={() => handleOpenEditPrice(p)}
+                        >
+                          Edit Price
+                        </button>
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => handleDelete(p._id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -382,6 +436,46 @@ const Profile = () => {
           </>
         )}
       </div>
+
+      {/* PROFILE FEATURE — Edit Price Modal */}
+      {editingPropertyId && (
+        <div className="modal-overlay" onClick={handleCloseEditPrice}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Edit Property Price</h3>
+              <button className="modal-close" onClick={handleCloseEditPrice}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Monthly Rent (৳)</label>
+                <input
+                  type="number"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  placeholder="Enter new price"
+                  min="0"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={handleCloseEditPrice}
+                disabled={updatingPrice}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleUpdatePrice}
+                disabled={updatingPrice}
+              >
+                {updatingPrice ? 'Updating...' : 'Update Price'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

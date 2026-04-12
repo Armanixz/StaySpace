@@ -7,6 +7,7 @@ const {
   createProperty,
   getMyListings,
   deleteProperty,
+  updateProperty,
 } = require('../controllers/propertyController');
 
 /**
@@ -36,6 +37,10 @@ router.get('/:id', getPropertyById);
 
 // @route   POST /api/properties
 router.post('/', protect, landlordOnly, createProperty);
+
+// NOTIFICATION FEATURE — Update property (triggers price update notifications)
+// @route   PUT /api/properties/:id
+router.put('/:id', protect, landlordOnly, updateProperty);
 
 // @route   DELETE /api/properties/:id
 router.delete('/:id', protect, landlordOnly, deleteProperty);

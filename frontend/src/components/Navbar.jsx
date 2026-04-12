@@ -37,9 +37,14 @@ const Navbar = () => {
               </>
             )}
             {user.role === 'tenant' && (
-              <Link to="/profile" className="btn btn-ghost">
-                My Profile
-              </Link>
+              <>
+                <Link to="/wishlist" className="btn btn-outline">
+                   Wishlist
+                </Link>
+                <Link to="/profile" className="btn btn-ghost">
+                  My Profile
+                </Link>
+              </>
             )}
             <button className="btn btn-ghost" onClick={handleLogout}>
               Logout
