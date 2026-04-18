@@ -21,7 +21,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.4",
     "nodemailer": "^6.10.1",
-    "socket.io": "^4.7.0" // #chatsystem - Real-time messaging support
+    "socket.io": "^4.7.0" 
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
