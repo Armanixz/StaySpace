@@ -100,6 +100,15 @@ const PropertyDetail = () => {
     }
   }
 
+  // #chatsystem - Navigate to messages page with landlord pre-selected
+  const handleMessageLandlord = () => {
+    if (!user || user.role !== 'tenant') {
+      alert('Please login as a tenant to message landlords')
+      return
+    }
+    navigate(`/messages?landlord=${property.landlord._id || property.landlord}&property=${id}`)
+  }
+
   const handleToggleWishlist = async () => {
     if (!user || user.role !== 'tenant') {
       alert('Please login as a tenant to save properties')
@@ -474,6 +483,14 @@ const PropertyDetail = () => {
                     Book This Property
                   </button>
                 )}
+                {/* #chatsystem - Message button on property listing */}
+                <button
+                  className="btn btn-message btn-block"
+                  onClick={handleMessageLandlord}
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  💬 Message Landlord
+                </button>
                 <button
                   className={`btn btn-block ${inWishlist ? 'btn-wishlist-active' : 'btn-wishlist'}`}
                   onClick={handleToggleWishlist}

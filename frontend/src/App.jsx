@@ -8,6 +8,8 @@ import Profile from './pages/Profile'
 import CreateListing from './pages/CreateListing'
 import PropertyDetail from './pages/PropertyDetail'
 import Wishlist from './pages/Wishlist'
+// #chatsystem - Chat feature route import
+import Messages from './pages/Messages'
 
 const PrivateRoute = ({ children, adminRequired = false }) => {
   const { user, loading } = useAuth()
@@ -54,6 +56,15 @@ function App() {
           element={
             <PrivateRoute>
               <Wishlist />
+            </PrivateRoute>
+          }
+        />
+        {/* #chatsystem - Real-time chat route */}
+        <Route
+          path="/messages"
+          element={
+            <PrivateRoute>
+              <Messages />
             </PrivateRoute>
           }
         />

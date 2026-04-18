@@ -130,6 +130,44 @@ body {
   background: #8BAE66;
 }
 
+/* #chatsystem - Button styles for messaging feature */
+.btn-message {
+  background: #8BAE66;
+  color: white;
+  border: none;
+}
+
+.btn-message:hover {
+  background: #628141;
+}
+
+.btn-block {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-wishlist {
+  background: #e8d4c0;
+  color: #1B211A;
+  border: 1px solid #d4c0a8;
+}
+
+.btn-wishlist:hover {
+  background: #d4c0a8;
+}
+
+.btn-wishlist-active {
+  background: #c0a894;
+  color: #1B211A;
+  border: 1px solid #a8947f;
+}
+
+.btn-wishlist-active:hover {
+  background: #a8947f;
+}
+
 /* ====== HERO ====== */
 .hero {
   background: #1B211A;
