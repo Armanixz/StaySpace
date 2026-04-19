@@ -287,7 +287,7 @@ const addToHistory = async (req, res) => {
       });
     }
 
-    const populatedHistory = await history.populate('property').populate('tenant', 'name email');
+    const populatedHistory = await History.findById(history._id).populate('property').populate('tenant', 'name email');
     res.status(201).json(populatedHistory);
   } catch (err) {
     console.error(err);

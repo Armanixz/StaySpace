@@ -1470,6 +1470,47 @@ body {
   gap: 0.75rem;
 }
 
+/* #paymentGateway - Tenant item layout (flex: tenant info on left, remove button on right) */
+.tenant-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tenant-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+/* #paymentGateway - Remove tenant button (cancels booking, re-enables property) */
+.btn-remove-tenant {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #dc3545;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-remove-tenant:hover:not(:disabled) {
+  background: #c82333;
+  transform: scale(1.1);
+}
+
+.btn-remove-tenant:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .tenant-avatar {
   width: 40px;
   height: 40px;
@@ -2436,3 +2477,61 @@ body {
     margin: -1rem 0;
   }
 }
+
+/* ====== STRIPE PAYMENT FEATURE ====== */
+/* #paymentGateway - Stripe payment form styling */
+.stripe-payment-form {
+  padding: 1.5rem;
+}
+
+/* #paymentGateway - Payment calculation display (nights × price) */
+.payment-summary {
+  background: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #8BAE66;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  color: #1B211A;
+  font-size: 0.95rem;
+}
+
+.summary-row.total {
+  font-weight: 700;
+  font-size: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+  color: #628141;
+}
+
+/* #paymentGateway - Secure card input element container */
+.card-element-wrapper {
+  border: 2px solid #e0e0e0;
+  padding: 1rem;
+  border-radius: 6px;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.card-element-wrapper:focus-within {
+  border-color: #628141;
+  outline: none;
+}
+
+.StripeElement {
+  font-family: 'DM Sans', 'Inter', sans-serif;
+}
+
+.payment-disclaimer {
+  font-size: 0.8rem;
+  color: #888;
+  text-align: center;
+  margin-top: 1rem;
+  font-style: italic;
+}
+

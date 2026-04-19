@@ -33,6 +33,8 @@ app.use('/api/reviews', require('./routes/review'));
 app.use('/api/appointments', require('./routes/appointment'));
 // #chatsystem - Chat messaging routes
 app.use('/api/chat', require('./routes/chat'));
+// STRIPE PAYMENT FEATURE — Payment routes
+app.use('/api/payments', require('./routes/payment'));
 
 // MongoDB Connection
 mongoose

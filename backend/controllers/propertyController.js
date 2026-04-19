@@ -58,6 +58,7 @@ const getPropertyById = async (req, res) => {
     res.json({
       ...property.toObject(),
       tenants: activeBookings.map(booking => booking.tenant),
+      _allBookings: activeBookings, // Include full booking info for landlords to remove tenants
       reviews,
     });
   } catch (err) {
