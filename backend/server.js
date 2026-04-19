@@ -37,6 +37,8 @@ app.use('/api/reports', require('./routes/report'));
 app.use('/api/chat', require('./routes/chat'));
 // STRIPE PAYMENT FEATURE — Payment routes
 app.use('/api/payments', require('./routes/payment'));
+// #googleCalendar - Google Calendar OAuth routes
+app.use('/api/calendar', require('./routes/calendar'));
 
 // MongoDB Connection
 mongoose

@@ -31,6 +31,9 @@ const PropertyDetail = () => {
   const [submittingBooking, setSubmittingBooking] = useState(false)
   // #paymentGateway - Toggle between date picker and payment form
   const [showPaymentForm, setShowPaymentForm] = useState(false)
+  // #googleCalendar - Booking result for calendar prompt; calendarAdded tracks post-OAuth redirect
+  const [bookingResult, setBookingResult] = useState(null)
+  const [calendarAdded, setCalendarAdded] = useState(false)
   // Remove tenant state
   const [removingTenant, setRemovingTenant] = useState(null)
 
@@ -48,6 +51,15 @@ const PropertyDetail = () => {
       checkWishlistStatus()
     }
   }, [id, user])
+
+  // #googleCalendar - Detect redirect back from Google OAuth and show confirmation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('calendarSuccess')) {
+      setCalendarAdded(true)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   const fetchPropertyDetails = async () => {
     setLoading(true)
@@ -227,13 +239,13 @@ const PropertyDetail = () => {
   }
 
   // #paymentGateway - STRIPE PAYMENT FEATURE — Handle successful payment: clear form, refresh bookings
+  // #googleCalendar - Store booking so calendar prompt can use the bookingId
   const handlePaymentSuccess = async (booking) => {
-    alert('Booking confirmed! Payment successful!')
     setShowBookingModal(false)
     setShowPaymentForm(false)
     setCheckIn('')
     setCheckOut('')
-    // Refresh booking status
+    setBookingResult(booking)
     checkIfBooked()
   }
 
@@ -762,6 +774,43 @@ const PropertyDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* #googleCalendar - Calendar prompt shown after successful booking */}
+      {calendarAdded && (
+        <div className="calendar-success-banner">
+          <span>Checkout reminder added to your Google Calendar!</span>
+          <button className="calendar-banner-close" onClick={() => setCalendarAdded(false)}>×</button>
+        </div>
+      )}
+
+      {bookingResult && !calendarAdded && (
+        <div className="calendar-prompt-banner">
+          <div className="calendar-prompt-content">
+            <p><strong>Booking confirmed!</strong> Add a checkout reminder to your Google Calendar?</p>
+            <div className="calendar-prompt-actions">
+              <button
+                className="btn btn-primary btn-calendar"
+                onClick={async () => {
+                  try {
+                    const { data } = await axios.get(`/api/calendar/auth?bookingId=${bookingResult._id}`)
+                    window.location.href = data.authUrl
+                  } catch (err) {
+                    alert('Failed to connect to Google Calendar. Please try again.')
+                  }
+                }}
+              >
+                Add to Google Calendar
+              </button>
+              <button
+                className="btn btn-ghost"
+                onClick={() => setBookingResult(null)}
+              >
+                No thanks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Booking Modal */}
       {showBookingModal && (
