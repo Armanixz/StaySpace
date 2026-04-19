@@ -19,6 +19,8 @@ app.use('/api/tenant', require('./routes/tenant'));
 app.use('/api/reviews', require('./routes/review'));
 // NOTIFICATION FEATURE — Add appointment routes
 app.use('/api/appointments', require('./routes/appointment'));
+// REPORTING FEATURE — Add report routes
+app.use('/api/reports', require('./routes/report'));
 
 // MongoDB Connection
 mongoose

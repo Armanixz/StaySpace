@@ -29,6 +29,13 @@ const PropertyDetail = () => {
   const [checkOut, setCheckOut] = useState('')
   const [submittingBooking, setSubmittingBooking] = useState(false)
 
+  // Report state
+  const [landlordReports, setLandlordReports] = useState([])
+  const [showReportForm, setShowReportForm] = useState(false)
+  const [reportDescription, setReportDescription] = useState('')
+  const [submittingReport, setSubmittingReport] = useState(false)
+  const [reportError, setReportError] = useState(null)
+
   useEffect(() => {
     fetchPropertyDetails()
     if (user?.role === 'tenant') {
@@ -46,6 +53,17 @@ const PropertyDetail = () => {
       console.log('Reviews:', data.reviews)
       console.log('Current user:', user)
       setProperty(data)
+      
+      // Fetch landlord reports after property is loaded
+      if (user?.role === 'tenant') {
+        try {
+          const { data: reportsData } = await axios.get(`/api/reports/${data.landlord._id}`)
+          setLandlordReports(reportsData || [])
+        } catch (err) {
+          console.error('Error fetching landlord reports:', err)
+          setLandlordReports([])
+        }
+      }
       
       // Check if current user has already rated
       if (user?.role === 'tenant' && data.reviews) {
@@ -198,6 +216,90 @@ const PropertyDetail = () => {
       alert(err.response?.data?.message || 'Failed to book property')
     } finally {
       setSubmittingBooking(false)
+    }
+  }
+
+  const fetchLandlordReports = async () => {
+    try {
+      if (!property?.landlord?._id) {
+        return
+      }
+      const { data } = await axios.get(`/api/reports/${property.landlord._id}`)
+      setLandlordReports(data || [])
+    } catch (err) {
+      console.error('Error fetching landlord reports:', err)
+      setLandlordReports([])
+    }
+  }
+
+  const handleSubmitReport = async (e) => {
+    e.preventDefault()
+    if (!user || user.role !== 'tenant') {
+      alert('Please login as a tenant to report landlords')
+      return
+    }
+
+    if (!reportDescription.trim()) {
+      setReportError('Please describe the issue')
+      return
+    }
+
+    if (reportDescription.length > 1000) {
+      setReportError('Report description cannot exceed 1000 characters')
+      return
+    }
+
+    setSubmittingReport(true)
+    setReportError(null)
+    try {
+      console.log('Submitting report with:', {
+        landlordId: property.landlord._id,
+        propertyId: id,
+        description: reportDescription.trim()
+      })
+      
+      const response = await axios.post(`/api/reports/landlord/${property.landlord._id}`, {
+        propertyId: id,
+        description: reportDescription.trim(),
+      })
+      console.log('Report submitted successfully:', response.data)
+      
+      // Immediately add the new report to the state for instant UI update
+      const newReport = response.data
+      console.log('Adding new report to state:', newReport)
+      setLandlordReports([newReport, ...landlordReports])
+      
+      // Close form immediately
+      setShowReportForm(false)
+      setReportDescription('')
+      setSubmittingReport(false)
+      setReportError(null)
+      
+      // Show success message
+      alert('Report submitted successfully!')
+    } catch (err) {
+      console.error('Error submitting report:', err)
+      console.error('Error response:', err.response?.data)
+      console.error('Error message:', err.message)
+      setSubmittingReport(false)
+      setReportError(err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to submit report')
+    }
+  }
+
+  const handleDeleteReport = async (reportId) => {
+    if (!window.confirm('Are you sure you want to delete this report?')) return
+    
+    try {
+      await axios.delete(`/api/reports/${reportId}`)
+      alert('Report deleted successfully!')
+      try {
+        await fetchLandlordReports()
+      } catch (refreshErr) {
+        console.error('Error refreshing reports after deletion:', refreshErr)
+        // Don't show error to user - report was deleted successfully
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete report')
     }
   }
 
@@ -414,6 +516,103 @@ const PropertyDetail = () => {
                 <p className="empty-state-small">No ratings yet. Be the first to rate!</p>
               )}
             </div>
+
+            {/* Landlord Reports Section - Tenant View */}
+            {user?.role === 'tenant' && (
+              <div className="detail-card reports-section">
+                <div className="reports-header">
+                  <h2>Landlord Reports</h2>
+                  {landlordReports.length > 0 && (
+                    <span className="report-count">({landlordReports.length})</span>
+                  )}
+                </div>
+
+                {landlordReports.length > 0 ? (
+                  <div className="reports-list">
+                    {landlordReports.map((report) => (
+                      <div key={report._id} className="report-item">
+                        <div className="report-header">
+                          <span className="report-by">
+                            Reported by: <strong>{report.reporter?.name || 'Anonymous'}</strong>
+                          </span>
+                          <span className="report-date">
+                            {new Date(report.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="report-description">{report.description}</p>
+                        {user?.role === 'tenant' && report.reporter?._id === user._id && (
+                          <button
+                            className="btn btn-danger btn-small"
+                            onClick={() => handleDeleteReport(report._id)}
+                            style={{ marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+                          >
+                            Delete My Report
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-state-small">No reports filed against this landlord</p>
+                )}
+
+                <div style={{ marginTop: '1rem' }}>
+                  {!showReportForm ? (
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setShowReportForm(true)}
+                    >
+                      File a Report
+                    </button>
+                  ) : (
+                    <form onSubmit={handleSubmitReport} className="report-form">
+                      <div className="form-group">
+                        <label>Describe the Issue</label>
+                        <textarea
+                          value={reportDescription}
+                          onChange={(e) => {
+                            setReportDescription(e.target.value)
+                            setReportError(null)
+                          }}
+                          placeholder="Please provide details about your issue with this landlord..."
+                          maxLength="1000"
+                          rows="5"
+                          className="report-textarea"
+                        />
+                        <small style={{ display: 'block', marginTop: '0.25rem', color: '#666' }}>
+                          {reportDescription.length}/1000 characters
+                        </small>
+                      </div>
+                      {reportError && (
+                        <div style={{ color: '#d32f2f', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                          {reportError}
+                        </div>
+                      )}
+                      <div className="form-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => {
+                            setShowReportForm(false)
+                            setReportDescription('')
+                            setReportError(null)
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={submittingReport}
+                        >
+                          {submittingReport ? 'Submitting...' : 'Submit Report'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Sidebar */}

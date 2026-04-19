@@ -3,6 +3,8 @@ const Property = require('../models/Property');
 const User = require('../models/User');
 // NOTIFICATION FEATURE — Import notification service for email alerts
 const { sendBookingRequestEmail, sendBookingAcceptedEmail, sendBookingRejectedEmail, notifyWishlistOnBooking } = require('../services/notificationService');
+// REPORTING FEATURE — Import Report model
+const Report = require('../models/Report');
 
 
 const getMyBookings = async (req, res) => {
@@ -106,7 +108,24 @@ const getLandlordBookings = async (req, res) => {
       .populate('tenant', 'name email phone')
       .sort({ createdAt: -1 });
 
-    res.json(bookings);
+    // REPORTING FEATURE — Fetch reports for each tenant in the bookings
+    const bookingsWithReports = await Promise.all(
+      bookings.map(async (booking) => {
+        const tenantReports = await Report.find({
+          reportedUser: booking.tenant._id,
+          reportType: 'landlord-to-tenant',
+        })
+          .populate('reporter', 'name')
+          .sort({ createdAt: -1 });
+
+        return {
+          ...booking.toObject(),
+          tenantReports,
+        };
+      })
+    );
+
+    res.json(bookingsWithReports);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
