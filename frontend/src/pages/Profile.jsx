@@ -23,6 +23,17 @@ const Profile = () => {
   const [editingPropertyId, setEditingPropertyId] = useState(null)
   const [editPrice, setEditPrice] = useState('')
   const [updatingPrice, setUpdatingPrice] = useState(false)
+  
+  // REPORTING FEATURE — State for tenant reports
+  const [expandedBookingId, setExpandedBookingId] = useState(null)
+  const [reportingTenantId, setReportingTenantId] = useState(null)
+  const [reportDescription, setReportDescription] = useState('')
+  const [submittingReport, setSubmittingReport] = useState(false)
+  const [reportError, setReportError] = useState('')
+
+  // REPORTING FEATURE — State for reports against current user
+  const [reportsAgainstMe, setReportsAgainstMe] = useState([])
+  const [loadingReportsAgainstMe, setLoadingReportsAgainstMe] = useState(false)
 
   useEffect(() => {
     if (!user) { 
@@ -36,6 +47,8 @@ const Profile = () => {
     } else if (user.role === 'tenant') {
       fetchMyBookings()
     }
+    // Fetch reports against current user for both landlords and tenants
+    fetchReportsAgainstMe()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, navigate])
 
@@ -75,6 +88,22 @@ const Profile = () => {
       setError('Failed to load bookings')
     } finally {
       setLoadingBookings(false)
+    }
+  }
+
+  // REPORTING FEATURE — Fetch reports filed against current user
+  const fetchReportsAgainstMe = async () => {
+    if (!user) return
+    setLoadingReportsAgainstMe(true)
+    try {
+      const { data } = await axios.get(`/api/reports/${user._id}`)
+      console.log('Reports against me:', data)
+      setReportsAgainstMe(data)
+    } catch (err) {
+      console.error('Error fetching reports against me:', err)
+      // Silent fail - not critical
+    } finally {
+      setLoadingReportsAgainstMe(false)
     }
   }
 
@@ -183,6 +212,77 @@ const Profile = () => {
     }
   }
 
+  // REPORTING FEATURE — Handle submit report against tenant
+  const handleSubmitTenantReport = async (e, booking) => {
+    e.preventDefault()
+    if (!reportDescription.trim()) {
+      setReportError('Please describe the issue')
+      return
+    }
+
+    if (reportDescription.length > 1000) {
+      setReportError('Report description cannot exceed 1000 characters')
+      return
+    }
+
+    setSubmittingReport(true)
+    setReportError('')
+    try {
+      const response = await axios.post(`/api/reports/tenant/${booking.tenant._id}`, {
+        propertyId: booking.property._id,
+        description: reportDescription.trim(),
+      })
+      console.log('Tenant report submitted successfully:', response.data)
+      console.log('Response status:', response.status)
+      
+      // Close form immediately
+      setReportingTenantId(null)
+      setReportDescription('')
+      setSubmittingReport(false)
+      setReportError('') // Ensure error is cleared
+      
+      // Show success message
+      setSuccess('Report submitted successfully!')
+      setTimeout(() => setSuccess(''), 3000)
+      
+      // Add a small delay to ensure backend has processed the report
+      await new Promise(resolve => setTimeout(resolve, 600))
+      
+      // Refresh bookings to get updated report info
+      try {
+        await fetchLandlordBookings()
+      } catch (refreshErr) {
+        console.error('Error refreshing bookings:', refreshErr)
+        // Don't show error to user - report was submitted successfully
+      }
+    } catch (err) {
+      console.error('Error submitting tenant report:', err)
+      console.error('Error response:', err.response)
+      console.error('Error message:', err.message)
+      setSubmittingReport(false)
+      setReportError(err.response?.data?.message || err.message || 'Failed to submit report')
+    }
+  }
+
+  // REPORTING FEATURE — Delete tenant report
+  const handleDeleteTenantReport = async (reportId) => {
+    if (!window.confirm('Are you sure you want to delete this report?')) return
+    
+    try {
+      await axios.delete(`/api/reports/${reportId}`)
+      alert('Report deleted successfully!')
+      try {
+        await fetchLandlordBookings()
+        await fetchReportsAgainstMe() // Also refresh reports against me
+      } catch (refreshErr) {
+        console.error('Error refreshing after report deletion:', refreshErr)
+        // Don't show error to user - report was deleted successfully
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete report')
+    }
+  }
+
   if (!user) return null
 
   return (
@@ -244,6 +344,64 @@ const Profile = () => {
           </form>
         </div>
 
+        {/* REPORTING FEATURE — Reports Against Me Section */}
+        {reportsAgainstMe && reportsAgainstMe.length > 0 && (
+          <div className="profile-card" style={{ borderTop: '3px solid #dc3545', backgroundColor: '#fff5f5' }}>
+            <h3 style={{ color: '#dc3545', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              ⚠️ Reports Against You
+            </h3>
+            <p style={{ marginBottom: '1.5rem', color: '#666', fontSize: '0.95rem' }}>
+              {reportsAgainstMe.length} report{reportsAgainstMe.length !== 1 ? 's' : ''} have been filed against you.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {reportsAgainstMe.map((report) => (
+                <div
+                  key={report._id}
+                  style={{
+                    padding: '1rem',
+                    border: '1px solid #ffdddd',
+                    borderRadius: '6px',
+                    backgroundColor: '#fff',
+                  }}
+                >
+                  <div style={{ marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>
+                        <strong>Reported by:</strong> {report.reporter?.name || 'Anonymous'}
+                      </p>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#999' }}>
+                        {new Date(report.createdAt).toLocaleDateString()} at {new Date(report.createdAt).toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <span
+                      style={{
+                        padding: '0.35rem 0.75rem',
+                        backgroundColor: '#e8e8e8',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        color: '#333',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {report.status}
+                    </span>
+                  </div>
+                  {report.property && (
+                    <p style={{ margin: '0.5rem 0', fontSize: '0.9rem', color: '#666' }}>
+                      <strong>Property:</strong> {report.property.name}
+                    </p>
+                  )}
+                  <p style={{ margin: '0.75rem 0 0 0', fontSize: '0.95rem', color: '#333', lineHeight: '1.5' }}>
+                    <strong>Report Description:</strong><br/>
+                    {report.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tenant: My Bookings */}
         {user.role === 'tenant' && (
           <div className="my-listings-section">
@@ -301,7 +459,7 @@ const Profile = () => {
         {/* My Listings (Landlord only) */}
         {user.role === 'landlord' && (
           <>
-            {/* Booking Requests Section */}
+            {/* Booking Requests Section (Pending Bookings) */}
             <div className="my-listings-section">
               <div className="my-listings-header">
                 <h3>Booking Requests</h3>
@@ -321,48 +479,243 @@ const Profile = () => {
                       if (!booking.property) return null;
                       
                       return (
-                      <div key={booking._id} className="my-listing-card booking-request-card">
-                        <div className="my-listing-img">
-                          {booking.property?.images?.[0] ? (
-                            <img src={booking.property.images[0]} alt={booking.property.name} />
-                          ) : (
-                            <div className="img-placeholder">🏠</div>
-                          )}
-                        </div>
-                        <div className="my-listing-info">
-                          <h4>{booking.property?.name || 'Property'}</h4>
-                          <p className="listing-meta">{booking.property?.type || 'N/A'} · {booking.property?.location || 'N/A'}</p>
-                          <p className="listing-rent">৳{booking.property?.rent?.toLocaleString() || '0'}<span>/mo</span></p>
-                          <p className="booking-tenant">
-                            <strong>Tenant:</strong> {booking.tenant?.name || 'Unknown'}<br/>
-                            <strong>Email:</strong> {booking.tenant?.email || 'N/A'}<br/>
-                            {booking.tenant?.phone && (
-                              <><strong>Phone:</strong> {booking.tenant.phone}<br/></>
+                        <div 
+                          key={booking._id} 
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            backgroundColor: '#fff',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                            padding: '1rem',
+                            gap: '1rem'
+                          }}
+                        >
+                          {/* Image */}
+                          <div style={{ width: '100%', height: '180px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
+                            {booking.property?.images?.[0] ? (
+                              <img src={booking.property.images[0]} alt={booking.property.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>🏠</div>
                             )}
-                          </p>
-                          <p className="booking-dates">
-                            <strong>Check-in:</strong> {new Date(booking.checkInDate).toLocaleDateString()}<br/>
-                            <strong>Check-out:</strong> {new Date(booking.checkOutDate).toLocaleDateString()}
-                          </p>
-                          <span className="badge badge-pending">{booking.status}</span>
+                          </div>
+
+                          {/* Info */}
+                          <div>
+                            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#333' }}>{booking.property?.name || 'Property'}</h4>
+                            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>{booking.property?.type || 'N/A'} · {booking.property?.location || 'N/A'}</p>
+                            <p style={{ margin: '0 0 0.75rem 0', fontSize: '1.2rem', fontWeight: 'bold', color: '#2c3e50' }}>৳{booking.property?.rent?.toLocaleString() || '0'}<span style={{ fontSize: '0.8rem', color: '#666' }}>/mo</span></p>
+                            
+                            {/* Tenant Info */}
+                            <div style={{ backgroundColor: '#f9f9f9', padding: '0.75rem', borderRadius: '4px', marginBottom: '0.75rem', fontSize: '0.9rem', color: '#555' }}>
+                              <p style={{ margin: '0 0 0.25rem 0' }}><strong>Tenant:</strong> {booking.tenant?.name || 'Unknown'}</p>
+                              <p style={{ margin: '0 0 0.25rem 0' }}><strong>Email:</strong> {booking.tenant?.email || 'N/A'}</p>
+                              {booking.tenant?.phone && (
+                                <p style={{ margin: 0 }}><strong>Phone:</strong> {booking.tenant.phone}</p>
+                              )}
+                            </div>
+
+                            {/* Dates */}
+                            <div style={{ fontSize: '0.9rem', color: '#555', marginBottom: '0.75rem' }}>
+                              <p style={{ margin: '0 0 0.25rem 0' }}><strong>Check-in:</strong> {new Date(booking.checkInDate).toLocaleDateString()}</p>
+                              <p style={{ margin: 0 }}><strong>Check-out:</strong> {new Date(booking.checkOutDate).toLocaleDateString()}</p>
+                            </div>
+
+                            {/* Status Badge */}
+                            <span style={{ display: 'inline-block', backgroundColor: '#fff3cd', color: '#856404', padding: '0.35rem 0.75rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase' }}>
+                              {booking.status}
+                            </span>
+                          </div>
+
+                          {/* Buttons */}
+                          <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => handleConfirmBooking(booking._id)}
+                              style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem', flex: 1, borderRadius: '4px' }}
+                            >
+                              ✓ Confirm
+                            </button>
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => handleRejectBooking(booking._id)}
+                              style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem', flex: 1, borderRadius: '4px' }}
+                            >
+                              ✕ Reject
+                            </button>
+                          </div>
                         </div>
-                        <div className="booking-actions">
-                          <button
-                            className="btn btn-primary"
-                            onClick={() => handleConfirmBooking(booking._id)}
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            className="btn btn-danger"
-                            onClick={() => handleRejectBooking(booking._id)}
-                          >
-                            Reject
-                          </button>
+                      )
+                    })}
+                </div>
+              )}
+            </div>
+
+            {/* Confirmed Bookings Section */}
+            <div className="my-listings-section">
+              <div className="my-listings-header">
+                <h3>Confirmed Bookings</h3>
+              </div>
+
+              {loadingLandlordBookings ? (
+                <p className="empty-state">Loading confirmed bookings…</p>
+              ) : landlordBookings.filter(b => b.status === 'confirmed').length === 0 ? (
+                <div className="empty-state">
+                  <p>No confirmed bookings yet.</p>
+                </div>
+              ) : (
+                <div className="my-listings-grid">
+                  {landlordBookings
+                    .filter(booking => booking.status === 'confirmed')
+                    .map((booking) => {
+                      if (!booking.property) return null;
+                      
+                      return (
+                        <div key={`confirmed-${booking._id}`}>
+                          <div className="my-listing-card booking-confirmed-card">
+                            <div className="my-listing-img">
+                              {booking.property?.images?.[0] ? (
+                                <img src={booking.property.images[0]} alt={booking.property.name} />
+                              ) : (
+                                <div className="img-placeholder">🏠</div>
+                              )}
+                            </div>
+                            <div className="my-listing-info">
+                              <h4>{booking.property?.name || 'Property'}</h4>
+                              <p className="listing-meta">{booking.property?.type || 'N/A'} · {booking.property?.location || 'N/A'}</p>
+                              <p className="listing-rent">৳{booking.property?.rent?.toLocaleString() || '0'}<span>/mo</span></p>
+                              <p className="booking-tenant">
+                                <strong>Tenant:</strong> {booking.tenant?.name || 'Unknown'}<br/>
+                                <strong>Email:</strong> {booking.tenant?.email || 'N/A'}<br/>
+                                {booking.tenant?.phone && (
+                                  <><strong>Phone:</strong> {booking.tenant.phone}<br/></>
+                                )}
+                              </p>
+                              <p className="booking-dates">
+                                <strong>Check-in:</strong> {new Date(booking.checkInDate).toLocaleDateString()}<br/>
+                                <strong>Check-out:</strong> {new Date(booking.checkOutDate).toLocaleDateString()}
+                              </p>
+                              <span className="badge badge-confirmed">{booking.status}</span>
+                            </div>
+                          </div>
+
+                          {/* REPORTING FEATURE — Tenant Reports Section (In Confirmed Bookings) */}
+                          <div style={{ backgroundColor: '#fff', padding: '1.5rem', borderRadius: '8px', marginTop: '0.5rem', border: '1px solid #e0e0e0', gridColumn: '1 / -1' }}>
+                            <h5 style={{ marginBottom: '1rem', color: '#333', fontSize: '1.1rem', fontWeight: '600' }}>Tenant Report History</h5>
+                            {booking.tenantReports && booking.tenantReports.length > 0 ? (
+                              <div style={{ backgroundColor: '#fff3cd', padding: '1rem', borderRadius: '4px', marginBottom: '1rem' }}>
+                                <p style={{ margin: '0 0 0.75rem 0', color: '#856404', fontWeight: 'bold', fontSize: '0.95rem' }}>
+                                  ⚠️ {booking.tenantReports.length} report(s) filed against this tenant
+                                </p>
+                                {booking.tenantReports.map((report) => (
+                                  <div key={report._id} style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #ffebd3', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', color: '#856404', fontWeight: '500' }}>
+                                        <strong>By:</strong> {report.reporter?.name || 'Admin'} • {new Date(report.createdAt).toLocaleDateString()}
+                                      </p>
+                                      <p style={{ margin: '0.25rem 0', fontSize: '0.9rem', color: '#555' }}>
+                                        {report.description}
+                                      </p>
+                                    </div>
+                                    {user.role === 'landlord' && report.reporter?._id === user._id && (
+                                      <button
+                                        onClick={() => handleDeleteTenantReport(report._id)}
+                                        style={{
+                                          padding: '0.35rem 0.75rem',
+                                          fontSize: '0.8rem',
+                                          backgroundColor: '#dc3545',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          whiteSpace: 'nowrap',
+                                          flexShrink: 0
+                                        }}
+                                      >
+                                        Delete
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p style={{ margin: 0, color: '#6c757d', fontSize: '0.9rem', fontStyle: 'italic' }}>✓ No reports filed against this tenant</p>
+                            )}
+
+                            {/* Report Form */}
+                            {reportingTenantId === booking.tenant._id ? (
+                              <form onSubmit={(e) => handleSubmitTenantReport(e, booking)} style={{ backgroundColor: '#f8f9fa', padding: '1rem', borderRadius: '4px', marginTop: '1rem' }}>
+                                <div style={{ marginBottom: '0.75rem' }}>
+                                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#333' }}>
+                                    File a Report Against This Tenant
+                                  </label>
+                                  <textarea
+                                    value={reportDescription}
+                                    onChange={(e) => {
+                                      setReportDescription(e.target.value)
+                                      setReportError('')
+                                    }}
+                                    placeholder="Describe the issue with this tenant..."
+                                    maxLength="1000"
+                                    rows="4"
+                                    style={{
+                                      width: '100%',
+                                      padding: '0.5rem',
+                                      border: '1px solid #ddd',
+                                      borderRadius: '4px',
+                                      fontFamily: 'inherit',
+                                      fontSize: '0.9rem',
+                                      boxSizing: 'border-box'
+                                    }}
+                                  />
+                                  <small style={{ display: 'block', marginTop: '0.25rem', color: '#666' }}>
+                                    {reportDescription.length}/1000 characters
+                                  </small>
+                                </div>
+                                {reportError && (
+                                  <div style={{ color: '#d32f2f', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+                                    {reportError}
+                                  </div>
+                                )}
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    onClick={() => {
+                                      setReportingTenantId(null)
+                                      setReportDescription('')
+                                      setReportError('')
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="submit"
+                                    className="btn btn-primary"
+                                    disabled={submittingReport}
+                                  >
+                                    {submittingReport ? 'Submitting...' : 'Submit Report'}
+                                  </button>
+                                </div>
+                              </form>
+                            ) : (
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                  setReportingTenantId(booking.tenant._id)
+                                  setReportDescription('')
+                                  setReportError('')
+                                }}
+                                style={{ fontSize: '0.9rem', padding: '0.5rem 1rem', marginTop: '1rem', display: 'inline-block' }}
+                              >
+                                📋 File a Report
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
                 </div>
               )}
             </div>
