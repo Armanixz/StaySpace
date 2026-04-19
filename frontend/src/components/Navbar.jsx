@@ -45,6 +45,12 @@ const Navbar = () => {
                 <Link to="/wishlist" className="btn btn-outline">
                    Wishlist
                 </Link>
+                <Link to="/history" className="btn btn-outline">
+                  History
+                </Link>
+                <Link to="/compare" className="btn btn-outline">
+                  Compare
+                </Link>
                 {/* #chatsystem - Messages link for tenants */}
                 <Link to="/messages" className="btn btn-outline">
                   Messages

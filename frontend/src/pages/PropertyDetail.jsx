@@ -47,6 +47,15 @@ const PropertyDetail = () => {
       console.log('Current user:', user)
       setProperty(data)
       
+      // Add to history if user is a tenant
+      if (user?.role === 'tenant') {
+        try {
+          await axios.post(`/api/tenant/history/${id}`)
+        } catch (err) {
+          console.error('Error adding to history:', err)
+        }
+      }
+      
       // Check if current user has already rated
       if (user?.role === 'tenant' && data.reviews) {
         const existingRating = data.reviews.find(

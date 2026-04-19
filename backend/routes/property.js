@@ -10,15 +10,7 @@ const {
   updateProperty,
 } = require('../controllers/propertyController');
 
-/**
- * Arman
- * Property routes — mounted at /api/properties in server.js
- *   landlordOnly middleware: allows landlords and admins, blocks tenants
- *   GET  /            → public, all listings (with optional search)
- *   GET  /my          → landlord's own listings
- *   POST /            → create a new listing
- *   DELETE /:id       → delete own listing by ID
- */
+
 const landlordOnly = (req, res, next) => {
   if (req.user && (req.user.role === 'landlord' || req.user.role === 'admin')) {
     return next();

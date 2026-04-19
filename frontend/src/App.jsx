@@ -8,6 +8,8 @@ import Profile from './pages/Profile'
 import CreateListing from './pages/CreateListing'
 import PropertyDetail from './pages/PropertyDetail'
 import Wishlist from './pages/Wishlist'
+import History from './pages/History'
+import Compare from './pages/Compare'
 // #chatsystem - Chat feature route import
 import Messages from './pages/Messages'
 
@@ -26,7 +28,18 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/property/:id" element={<PropertyDetail />} />
+        <Route
+          path="/property/:id"
+          element={<PropertyDetail />}
+        />
+        <Route
+          path="/compare"
+          element={
+            <PrivateRoute>
+              <Compare />
+            </PrivateRoute>
+          }
+        />
         <Route
           path="/admin"
           element={
@@ -56,6 +69,14 @@ function App() {
           element={
             <PrivateRoute>
               <Wishlist />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <PrivateRoute>
+              <History />
             </PrivateRoute>
           }
         />

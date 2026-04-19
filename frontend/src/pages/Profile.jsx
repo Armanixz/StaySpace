@@ -1,11 +1,4 @@
-/**
- * Arman
- * Profile page (/profile) — available to all logged-in users.
- *   - Edit profile: update name, phone, or password via PUT /api/auth/profile
- *   - Landlords also see their own listings (fetched from GET /api/properties/my)
- *     with a delete button and a link to create a new listing
- *   - Tenants can view their bookings
- */
+
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
