@@ -11,6 +11,11 @@ const {
   getWishlist,
   addToWishlist,
   removeFromWishlist,
+  addToHistory,
+  getHistory,
+  getHistoryDetail,
+  deleteHistoryRecord,
+  clearHistory,
 } = require('../controllers/tenantController');
 
 // Tenant-only middleware
@@ -58,5 +63,21 @@ router.post('/wishlist/:propertyId', protect, tenantOnly, addToWishlist);
 
 // @route   DELETE /api/tenant/wishlist/:propertyId
 router.delete('/wishlist/:propertyId', protect, tenantOnly, removeFromWishlist);
+
+// History routes
+// @route   GET /api/tenant/history
+router.get('/history', protect, tenantOnly, getHistory);
+
+// @route   POST /api/tenant/history/:propertyId
+router.post('/history/:propertyId', protect, tenantOnly, addToHistory);
+
+// @route   GET /api/tenant/history/:historyId
+router.get('/history/:historyId', protect, tenantOnly, getHistoryDetail);
+
+// @route   DELETE /api/tenant/history/:historyId
+router.delete('/history/:historyId', protect, tenantOnly, deleteHistoryRecord);
+
+// @route   DELETE /api/tenant/history (clear all)
+router.delete('/history', protect, tenantOnly, clearHistory);
 
 module.exports = router;

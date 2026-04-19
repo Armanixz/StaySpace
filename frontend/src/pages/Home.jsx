@@ -1,11 +1,4 @@
-/**
- * Arman
- * Home page updates:
- *   - Replaced static features section with live property listings fetched from GET /api/properties
- *   - Added search bar that queries the API with ?search= (name, location, address, type)
- *   - Property cards show image, type badge, name, location, address, rent, and landlord name
- *   - Hero CTA adapts per role: landlord → Add Listing, tenant → Browse Listings, guest → Register
- */
+
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
@@ -21,7 +14,7 @@ const Home = () => {
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [bookedPropertyIds, setBookedPropertyIds] = useState([]) // Track booked properties
+  const [bookedPropertyIds, setBookedPropertyIds] = useState([]) //  selected properties for comparison
 
   useEffect(() => {
     fetchProperties()

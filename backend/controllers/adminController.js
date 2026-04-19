@@ -1,8 +1,6 @@
 const User = require('../models/User');
 
-// @desc    Get all users
-// @route   GET /api/admin/users
-// @access  Admin only
+
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}).select('-password').sort({ createdAt: -1 });
@@ -13,9 +11,7 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-// @desc    Delete a user by ID
-// @route   DELETE /api/admin/users/:id
-// @access  Admin only
+
 const deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -33,9 +29,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-// @desc    Get platform statistics
-// @route   GET /api/admin/stats
-// @access  Admin only
 const getStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({ role: { $ne: 'admin' } });
