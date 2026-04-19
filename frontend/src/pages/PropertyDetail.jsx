@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Navbar from '../components/Navbar'
+import StripePaymentForm from '../components/StripePaymentForm'
 import { useAuth } from '../context/AuthContext'
 
 
@@ -28,6 +29,10 @@ const PropertyDetail = () => {
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [submittingBooking, setSubmittingBooking] = useState(false)
+  // #paymentGateway - Toggle between date picker and payment form
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  // Remove tenant state
+  const [removingTenant, setRemovingTenant] = useState(null)
 
   // Report state
   const [landlordReports, setLandlordReports] = useState([])
@@ -62,6 +67,15 @@ const PropertyDetail = () => {
         } catch (err) {
           console.error('Error fetching landlord reports:', err)
           setLandlordReports([])
+        }
+      }
+      
+      // Add to history if user is a tenant
+      if (user?.role === 'tenant') {
+        try {
+          await axios.post(`/api/tenant/history/${id}`)
+        } catch (err) {
+          console.error('Error adding to history:', err)
         }
       }
       
@@ -116,6 +130,15 @@ const PropertyDetail = () => {
     } catch (err) {
       console.error('Error checking wishlist:', err)
     }
+  }
+
+  // #chatsystem - Navigate to messages page with landlord pre-selected
+  const handleMessageLandlord = () => {
+    if (!user || user.role !== 'tenant') {
+      alert('Please login as a tenant to message landlords')
+      return
+    }
+    navigate(`/messages?landlord=${property.landlord._id || property.landlord}&property=${id}`)
   }
 
   const handleToggleWishlist = async () => {
@@ -199,23 +222,42 @@ const PropertyDetail = () => {
       return
     }
     
-    setSubmittingBooking(true)
+    // STRIPE PAYMENT FEATURE — Show payment form instead of direct booking
+    setShowPaymentForm(true)
+  }
+
+  // #paymentGateway - STRIPE PAYMENT FEATURE — Handle successful payment: clear form, refresh bookings
+  const handlePaymentSuccess = async (booking) => {
+    alert('Booking confirmed! Payment successful!')
+    setShowBookingModal(false)
+    setShowPaymentForm(false)
+    setCheckIn('')
+    setCheckOut('')
+    // Refresh booking status
+    checkIfBooked()
+  }
+
+  // #paymentGateway - Remove tenant by cancelling their booking
+  // This makes the property available for the tenant to book again
+  const handleRemoveTenant = async (bookingId, tenantName) => {
+    if (!window.confirm(`Remove ${tenantName} from this property? This will cancel their booking.`)) {
+      return
+    }
+
+    setRemovingTenant(bookingId)
     try {
-      await axios.post('/api/tenant/bookings', {
-        propertyId: id,
-        checkInDate: checkIn,
-        checkOutDate: checkOut,
-      })
-      alert('Booking request submitted successfully!')
-      setShowBookingModal(false)
-      setCheckIn('')
-      setCheckOut('')
-      // Refresh booking status
-      checkIfBooked()
+      await axios.put(`/api/tenant/landlord/bookings/${bookingId}/reject`)
+      alert(`${tenantName} has been removed successfully`)
+      // Refresh property details
+      fetchPropertyDetails()
+      // Refresh booking status if it's own booking
+      if (user?.role === 'tenant') {
+        checkIfBooked()
+      }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to book property')
+      alert(err.response?.data?.message || 'Failed to remove tenant')
     } finally {
-      setSubmittingBooking(false)
+      setRemovingTenant(null)
     }
   }
 
@@ -641,19 +683,36 @@ const PropertyDetail = () => {
               <div className="detail-card">
                 <h3>Current Tenants</h3>
                 <ul className="tenants-list">
-                  {property.tenants.map((tenant) => (
-                    <li key={tenant._id}>
-                      <div className="tenant-avatar">
-                        {tenant.name?.charAt(0).toUpperCase() || 'T'}
-                      </div>
-                      <div>
-                        <p className="tenant-name">{tenant.name || 'Unknown'}</p>
-                        {tenant.email && (
-                          <p className="tenant-email">{tenant.email}</p>
+                  {property.tenants.map((tenant) => {
+                    // Find booking for this tenant to get booking ID
+                    const booking = property._allBookings?.find(b => b.tenant._id === tenant._id && b.status !== 'cancelled')
+                    return (
+                      <li key={tenant._id} className="tenant-item">
+                        <div className="tenant-info">
+                          <div className="tenant-avatar">
+                            {tenant.name?.charAt(0).toUpperCase() || 'T'}
+                          </div>
+                          <div>
+                            <p className="tenant-name">{tenant.name || 'Unknown'}</p>
+                            {tenant.email && (
+                              <p className="tenant-email">{tenant.email}</p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Remove tenant button for landlord */}
+                        {user?.role === 'landlord' && property.landlord?._id === user._id && booking && (
+                          <button
+                            className="btn-remove-tenant"
+                            onClick={() => handleRemoveTenant(booking._id, tenant.name)}
+                            disabled={removingTenant === booking._id}
+                            title="Remove this tenant"
+                          >
+                            {removingTenant === booking._id ? '...' : '✕'}
+                          </button>
                         )}
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
             )}
@@ -673,6 +732,14 @@ const PropertyDetail = () => {
                     Book This Property
                   </button>
                 )}
+                {/* #chatsystem - Message button on property listing */}
+                <button
+                  className="btn btn-message btn-block"
+                  onClick={handleMessageLandlord}
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  💬 Message Landlord
+                </button>
                 <button
                   className={`btn btn-block ${inWishlist ? 'btn-wishlist-active' : 'btn-wishlist'}`}
                   onClick={handleToggleWishlist}
@@ -698,46 +765,77 @@ const PropertyDetail = () => {
 
       {/* Booking Modal */}
       {showBookingModal && (
-        <div className="modal-overlay" onClick={() => setShowBookingModal(false)}>
+        <div className="modal-overlay" onClick={() => {
+          setShowBookingModal(false)
+          setShowPaymentForm(false)
+          setCheckIn('')
+          setCheckOut('')
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Book {property.name}</h3>
-              <button className="modal-close" onClick={() => setShowBookingModal(false)}>×</button>
+              <h3>{showPaymentForm ? 'Complete Payment' : `Book ${property.name}`}</h3>
+              <button className="modal-close" onClick={() => {
+                setShowBookingModal(false)
+                setShowPaymentForm(false)
+                setCheckIn('')
+                setCheckOut('')
+              }}>×</button>
             </div>
-            <form onSubmit={handleBookProperty} className="modal-form">
-              <div className="form-group">
-                <label>Check-in Date</label>
-                <input
-                  type="date"
-                  value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Check-out Date</label>
-                <input
-                  type="date"
-                  value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
-                  min={checkIn || new Date().toISOString().split('T')[0]}
-                  required
-                />
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setShowBookingModal(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={submittingBooking}>
-                  {submittingBooking ? 'Booking...' : 'Confirm Booking'}
-                </button>
-              </div>
-            </form>
+
+            {/* STRIPE PAYMENT FEATURE — Show payment form if user selected dates */}
+            {showPaymentForm && checkIn && checkOut ? (
+              <StripePaymentForm
+                propertyId={id}
+                checkInDate={checkIn}
+                checkOutDate={checkOut}
+                pricePerNight={property.rent}
+                onPaymentSuccess={handlePaymentSuccess}
+                onCancel={() => {
+                  setShowPaymentForm(false)
+                  setCheckIn('')
+                  setCheckOut('')
+                }}
+              />
+            ) : (
+              <form onSubmit={handleBookProperty} className="modal-form">
+                <div className="form-group">
+                  <label>Check-in Date</label>
+                  <input
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Check-out Date</label>
+                  <input
+                    type="date"
+                    value={checkOut}
+                    onChange={(e) => setCheckOut(e.target.value)}
+                    min={checkIn || new Date().toISOString().split('T')[0]}
+                    required
+                  />
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      setShowBookingModal(false)
+                      setCheckIn('')
+                      setCheckOut('')
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={submittingBooking}>
+                    {submittingBooking ? 'Loading...' : 'Continue to Payment'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

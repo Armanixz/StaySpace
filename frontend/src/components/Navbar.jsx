@@ -31,6 +31,10 @@ const Navbar = () => {
                 <Link to="/create-listing" className="btn btn-outline">
                   + Add Listing
                 </Link>
+                {/* #chatsystem - Messages link for landlords */}
+                <Link to="/messages" className="btn btn-outline">
+                  Messages
+                </Link>
                 <Link to="/profile" className="btn btn-ghost">
                   My Profile
                 </Link>
@@ -40,6 +44,16 @@ const Navbar = () => {
               <>
                 <Link to="/wishlist" className="btn btn-outline">
                    Wishlist
+                </Link>
+                <Link to="/history" className="btn btn-outline">
+                  History
+                </Link>
+                <Link to="/compare" className="btn btn-outline">
+                  Compare
+                </Link>
+                {/* #chatsystem - Messages link for tenants */}
+                <Link to="/messages" className="btn btn-outline">
+                  Messages
                 </Link>
                 <Link to="/profile" className="btn btn-ghost">
                   My Profile

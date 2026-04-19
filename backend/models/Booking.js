@@ -26,6 +26,24 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    // #paymentGateway - STRIPE PAYMENT FEATURE — Payment information stored in booking
+    paymentId: {
+      type: String,
+      default: null,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'completed', 'failed'],
+      default: 'pending',
+    },
+    paymentAmount: {
+      type: Number,
+      default: 0,
+    },
+    paymentMethod: {
+      type: String,
+      default: 'card',
+    },
   },
   { timestamps: true }
 );

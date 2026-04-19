@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const Property = require('../models/Property');
 const User = require('../models/User');
+const History = require('../models/History');
 // NOTIFICATION FEATURE — Import notification service for email alerts
 const { sendBookingRequestEmail, sendBookingAcceptedEmail, sendBookingRejectedEmail, notifyWishlistOnBooking } = require('../services/notificationService');
 // REPORTING FEATURE — Import Report model
@@ -19,6 +20,7 @@ const getMyBookings = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 const createBooking = async (req, res) => {
   try {
@@ -153,7 +155,7 @@ const confirmBooking = async (req, res) => {
     
     const populatedBooking = await booking.populate('tenant', 'name email phone');
     
-    // NOTIFICATION FEATURE — Send booking acceptance email to tenant with landlord contact info
+    // NOTIFICATION — Send booking acceptance email to tenant 
     const tenant = await User.findById(booking.tenant._id);
     const property = await Property.findById(booking.property._id);
     const landlord = await User.findById(req.user._id);
@@ -273,6 +275,129 @@ const removeFromWishlist = async (req, res) => {
   }
 };
 
+// @desc    Add property visit to history
+// @route   POST /api/tenant/history/:propertyId
+// @access  Private (Tenant)
+const addToHistory = async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+
+    const property = await Property.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
+    // Check if a history record exists for this property by this tenant
+    let history = await History.findOne({
+      tenant: req.user._id,
+      property: propertyId,
+    });
+
+    if (history) {
+      // Update the visitedAt timestamp to current time
+      history.visitedAt = new Date();
+      await history.save();
+    } else {
+      // Create a new history record
+      history = await History.create({
+        tenant: req.user._id,
+        property: propertyId,
+        visitedAt: new Date(),
+      });
+    }
+
+    const populatedHistory = await History.findById(history._id).populate('property').populate('tenant', 'name email');
+    res.status(201).json(populatedHistory);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get tenant's property visit history
+// @route   GET /api/tenant/history
+// @access  Private (Tenant)
+const getHistory = async (req, res) => {
+  try {
+    // Get history records sorted by most recent first
+    const history = await History.find({ tenant: req.user._id })
+      .populate('property')
+      .populate('tenant', 'name email')
+      .sort({ visitedAt: -1 });
+
+    res.json(history);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get a single history record
+// @route   GET /api/tenant/history/:historyId
+// @access  Private (Tenant)
+const getHistoryDetail = async (req, res) => {
+  try {
+    const { historyId } = req.params;
+
+    const history = await History.findById(historyId)
+      .populate('property')
+      .populate('tenant', 'name email');
+
+    if (!history) {
+      return res.status(404).json({ message: 'History record not found' });
+    }
+
+    // Verify ownership
+    if (history.tenant._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    res.json(history);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Delete a history record
+// @route   DELETE /api/tenant/history/:historyId
+// @access  Private (Tenant)
+const deleteHistoryRecord = async (req, res) => {
+  try {
+    const { historyId } = req.params;
+
+    const history = await History.findById(historyId);
+
+    if (!history) {
+      return res.status(404).json({ message: 'History record not found' });
+    }
+
+    // Verify ownership
+    if (history.tenant.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    await History.findByIdAndDelete(historyId);
+    res.json({ message: 'History record deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Clear all history records for a tenant
+// @route   DELETE /api/tenant/history
+// @access  Private (Tenant)
+const clearHistory = async (req, res) => {
+  try {
+    await History.deleteMany({ tenant: req.user._id });
+    res.json({ message: 'All history records cleared successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getMyBookings,
   createBooking,
@@ -283,4 +408,9 @@ module.exports = {
   getWishlist,
   addToWishlist,
   removeFromWishlist,
+  addToHistory,
+  getHistory,
+  getHistoryDetail,
+  deleteHistoryRecord,
+  clearHistory,
 };

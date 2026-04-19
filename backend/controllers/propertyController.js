@@ -5,28 +5,8 @@ const User = require('../models/User');
 // NOTIFICATION FEATURE — Import notification service for price update emails
 const { notifyWishlistOnPriceUpdate } = require('../services/notificationService');
 
-/**
- * Arman
- * propertyController — handles all CRUD operations for property listings.
- *   getProperties  : public, returns all listings; supports ?search= query (name/location/address/type)
- *   getPropertyById: public, returns detailed info for a single property (landlord, tenants, reviews)
- *   createProperty : landlord-only, creates a new listing tied to req.user._id
- *   getMyListings  : landlord-only, returns only the logged-in landlord's own listings
- *   deleteProperty : landlord-only, deletes a listing after verifying ownership
- */
 
-/**
- * Arman
- * propertyController — handles all CRUD operations for property listings.
- *   getProperties  : public, returns all listings; supports ?search= query (name/location/address/type)
- *   getPropertyById: public, returns detailed info for a single property (landlord, tenants, reviews)
- *   createProperty : landlord-only, creates a new listing tied to req.user._id
- *   getMyListings  : landlord-only, returns only the logged-in landlord's own listings
- *   deleteProperty : landlord-only, deletes a listing after verifying ownership
- */
-// @desc    Get all properties (with optional search)
-// @route   GET /api/properties
-// @access  Public
+
 const getProperties = async (req, res) => {
   try {
     const { search } = req.query;
@@ -52,9 +32,7 @@ const getProperties = async (req, res) => {
   }
 };
 
-// @desc    Get a single property by ID with full details
-// @route   GET /api/properties/:id
-// @access  Public
+
 const getPropertyById = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id)
@@ -80,6 +58,7 @@ const getPropertyById = async (req, res) => {
     res.json({
       ...property.toObject(),
       tenants: activeBookings.map(booking => booking.tenant),
+      _allBookings: activeBookings, // Include full booking info for landlords to remove tenants
       reviews,
     });
   } catch (err) {
@@ -88,9 +67,6 @@ const getPropertyById = async (req, res) => {
   }
 };
 
-// @desc    Create a property listing
-// @route   POST /api/properties
-// @access  Landlord
 const createProperty = async (req, res) => {
   const { name, address, type, rent, location, images } = req.body;
 
@@ -121,9 +97,7 @@ const createProperty = async (req, res) => {
   }
 };
 
-// @desc    Get logged-in landlord's own listings
-// @route   GET /api/properties/my
-// @access  Landlord
+
 const getMyListings = async (req, res) => {
   try {
     const properties = await Property.find({ landlord: req.user._id }).sort({
@@ -136,9 +110,7 @@ const getMyListings = async (req, res) => {
   }
 };
 
-// NOTIFICATION FEATURE — Update a property (landlord only)
-// @route   PUT /api/properties/:id
-// @access  Landlord
+
 const updateProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
@@ -176,9 +148,7 @@ const updateProperty = async (req, res) => {
   }
 };
 
-// @desc    Delete a property (own listings only)
-// @route   DELETE /api/properties/:id
-// @access  Landlord
+
 const deleteProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
