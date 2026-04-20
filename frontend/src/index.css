@@ -2535,3 +2535,73 @@ body {
   font-style: italic;
 }
 
+/* #googleCalendar - Calendar prompt and success banner styles */
+.calendar-prompt-banner {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1.5px solid #628141;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  padding: 1.25rem 1.5rem;
+  z-index: 1000;
+  max-width: 480px;
+  width: calc(100% - 2rem);
+}
+
+.calendar-prompt-content p {
+  margin: 0 0 1rem 0;
+  color: #1B211A;
+  font-size: 0.95rem;
+}
+
+.calendar-prompt-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.btn-calendar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.calendar-success-banner {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #628141;
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  padding: 1rem 1.5rem;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 480px;
+  width: calc(100% - 2rem);
+  font-size: 0.95rem;
+}
+
+.calendar-banner-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  margin-left: auto;
+  opacity: 0.8;
+}
+
+.calendar-banner-close:hover {
+  opacity: 1;
+}
+
