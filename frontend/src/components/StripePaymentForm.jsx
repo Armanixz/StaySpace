@@ -26,36 +26,64 @@ const StripePaymentForm = ({
 
   useEffect(() => {
     // Calculate nights and total amount
-    if (checkInDate && checkOutDate) {
+    if (checkInDate && checkOutDate && pricePerNight) {
       const checkIn = new Date(checkInDate);
       const checkOut = new Date(checkOutDate);
       const calculatedNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-      const amount = calculatedNights * pricePerNight;
+      const amount = calculatedNights * Number(pricePerNight);
+      
+      console.log('Payment form debug:', {
+        checkInDate,
+        checkOutDate,
+        pricePerNight,
+        pricePerNightType: typeof pricePerNight,
+        calculatedNights,
+        amount
+      });
       
       setNights(calculatedNights);
       setTotalAmount(amount);
       
       // Create payment intent on mount or when dates change
-      createPaymentIntent(calculatedNights, amount);
+      if (calculatedNights > 0 && amount > 0) {
+        createPaymentIntent(calculatedNights, amount);
+      } else {
+        setError('Invalid check-in/check-out dates or price');
+      }
     }
   }, [checkInDate, checkOutDate, pricePerNight]);
 
   const createPaymentIntent = async (calculatedNights, amount) => {
     // #paymentGateway - Request PaymentIntent from backend (returns clientSecret for card confirmation)
     try {
+      console.log('Creating payment intent with:', {
+        propertyId,
+        checkInDate,
+        checkOutDate,
+        pricePerNight: Number(pricePerNight),
+        calculatedNights,
+        amount
+      });
+      
       const response = await axios.post('/api/payments/create-intent', {
         propertyId,
         checkInDate,
         checkOutDate,
-        pricePerNight,
+        pricePerNight: Number(pricePerNight),
       });
       
+      console.log('Payment intent response:', response.data);
       setPaymentIntentId(response.data.paymentIntentId);
       setClientSecret(response.data.clientSecret);
       setError(null);
     } catch (err) {
+      console.error('Payment intent full error:', {
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        error: err.response?.data?.error,
+        fullError: err
+      });
       setError(err.response?.data?.message || 'Failed to initialize payment');
-      console.error('Payment intent error:', err);
     }
   };
 

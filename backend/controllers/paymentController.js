@@ -13,9 +13,18 @@ const createPaymentIntent = async (req, res) => {
   try {
     const { propertyId, checkInDate, checkOutDate, pricePerNight } = req.body;
 
+    console.log('Payment intent request:', {
+      propertyId,
+      checkInDate,
+      checkOutDate,
+      pricePerNight,
+      userId: req.user?._id
+    });
+
     if (!propertyId || !checkInDate || !checkOutDate || !pricePerNight) {
       return res.status(400).json({ 
-        message: 'Please provide property ID, check-in date, check-out date, and price per night' 
+        message: 'Please provide property ID, check-in date, check-out date, and price per night',
+        received: { propertyId, checkInDate, checkOutDate, pricePerNight }
       });
     }
 
@@ -58,6 +67,12 @@ const createPaymentIntent = async (req, res) => {
     });
   } catch (err) {
     console.error('Payment intent error:', err);
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      statusCode: err.statusCode,
+      stripeKey: process.env.STRIPE_SECRET_KEY ? 'SET' : 'NOT SET'
+    });
     res.status(500).json({ message: 'Failed to create payment intent', error: err.message });
   }
 };
