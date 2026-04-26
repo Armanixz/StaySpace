@@ -53,16 +53,16 @@ const getPropertyById = async (req, res) => {
       .populate('tenant', 'name _id')
       .sort({ createdAt: -1 });
 
-    console.log('Property reviews:', reviews);
-
-    res.json({
+    const responseData = {
       ...property.toObject(),
-      tenants: activeBookings.map(booking => booking.tenant),
-      _allBookings: activeBookings, // Include full booking info for landlords to remove tenants
+      tenants: activeBookings.map(booking => booking.tenant).filter(tenant => tenant !== null),
+      _allBookings: activeBookings,
       reviews,
-    });
+    };
+
+    res.json(responseData);
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching property:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };

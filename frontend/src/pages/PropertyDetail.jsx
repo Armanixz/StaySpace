@@ -45,6 +45,7 @@ const PropertyDetail = () => {
   const [reportError, setReportError] = useState(null)
 
   useEffect(() => {
+    console.log('PropertyDetail mounted with id:', id)
     fetchPropertyDetails()
     if (user?.role === 'tenant') {
       checkIfBooked()
@@ -62,59 +63,65 @@ const PropertyDetail = () => {
   }, [])
 
   const fetchPropertyDetails = async () => {
+    if (!id) {
+      console.error('No property ID provided')
+      setError('Invalid property ID')
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
+
     try {
-      const { data } = await axios.get(`/api/properties/${id}`)
-      console.log('Property data:', data)
-      console.log('Reviews:', data.reviews)
-      console.log('Current user:', user)
-      setProperty(data)
-      
-      // Fetch landlord reports after property is loaded
-      if (user?.role === 'tenant') {
+      console.log('🔍 Fetching property:', id)
+      const response = await axios.get(`/api/properties/${id}`)
+      const propertyData = response.data
+
+      console.log('✅ Got property data:', propertyData.name, propertyData.landlord?.name)
+
+      // Update state with property data
+      setProperty(propertyData)
+
+      // Fetch additional data in parallel
+      if (user?.role === 'tenant' && propertyData?.landlord?._id) {
         try {
-          const { data: reportsData } = await axios.get(`/api/reports/${data.landlord._id}`)
-          setLandlordReports(reportsData || [])
+          const reportsResponse = await axios.get(`/api/reports/${propertyData.landlord._id}`)
+          setLandlordReports(reportsResponse.data || [])
         } catch (err) {
-          console.error('Error fetching landlord reports:', err)
+          console.warn('Could not fetch landlord reports:', err.message)
           setLandlordReports([])
         }
       }
-      
+
       // Add to history if user is a tenant
       if (user?.role === 'tenant') {
         try {
           await axios.post(`/api/tenant/history/${id}`)
         } catch (err) {
-          console.error('Error adding to history:', err)
+          console.warn('Could not add to history:', err.message)
         }
       }
-      
-      // Check if current user has already rated
-      if (user?.role === 'tenant' && data.reviews) {
-        const existingRating = data.reviews.find(
-          review => {
-            console.log('Checking review:', review, 'against user ID:', user._id)
-            return review.tenant?._id === user._id
-          }
+
+      // Check if user has already rated
+      if (user?.role === 'tenant' && propertyData?.reviews?.length > 0) {
+        const existingRating = propertyData.reviews.find(
+          review => review.tenant?._id === user._id
         )
-        console.log('Existing rating found:', existingRating)
         if (existingRating) {
           setUserRating(existingRating)
           setRating(existingRating.rating)
-        } else {
-          // Reset if no rating found
-          setUserRating(null)
-          setRating(5)
         }
-      } else {
-        // Reset if not a tenant or no reviews
-        setUserRating(null)
-        setRating(5)
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load property details')
+      console.error('❌ Failed to fetch property:', err.message)
+      console.error('Response status:', err.response?.status)
+      console.error('Response data:', err.response?.data)
+      setError(
+        err.response?.data?.message ||
+        err.response?.statusText ||
+        'Failed to load property details'
+      )
     } finally {
       setLoading(false)
     }
@@ -696,8 +703,9 @@ const PropertyDetail = () => {
                 <h3>Current Tenants</h3>
                 <ul className="tenants-list">
                   {property.tenants.map((tenant) => {
+                    if (!tenant) return null // Skip null tenants
                     // Find booking for this tenant to get booking ID
-                    const booking = property._allBookings?.find(b => b.tenant._id === tenant._id && b.status !== 'cancelled')
+                    const booking = property._allBookings?.find(b => b.tenant?._id === tenant._id && b.status !== 'cancelled')
                     return (
                       <li key={tenant._id} className="tenant-item">
                         <div className="tenant-info">

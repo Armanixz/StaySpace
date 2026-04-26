@@ -29,6 +29,19 @@ const userSchema = new mongoose.Schema(
       enum: ['tenant', 'landlord', 'admin'],
       default: 'tenant',
     },
+    // 2-STEP VERIFICATION FEATURE — verification fields
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationCode: {
+      type: String,
+      default: null,
+    },
+    verificationCodeExpiry: {
+      type: Date,
+      default: null,
+    },
     wishlist: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Property',

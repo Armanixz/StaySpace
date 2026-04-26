@@ -21,10 +21,10 @@ const landlordOnly = (req, res, next) => {
 // @route   GET /api/properties
 router.get('/', getProperties);
 
-// @route   GET /api/properties/my
+// @route   GET /api/properties/my (must come BEFORE /:id)
 router.get('/my', protect, landlordOnly, getMyListings);
 
-// @route   GET /api/properties/:id (must come after /my)
+// @route   GET /api/properties/:id
 router.get('/:id', getPropertyById);
 
 // @route   POST /api/properties
