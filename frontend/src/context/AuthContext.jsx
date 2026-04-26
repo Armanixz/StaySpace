@@ -4,7 +4,28 @@ import axios from 'axios'
 const AuthContext = createContext()
 
 // Configure axios base URL for backend
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+// In development with Vite proxy, we don't need to set a full URL - just use /api
+// In production, use the API URL from env
+if (import.meta.env.PROD) {
+  axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+}
+
+// Add debug logging for all axios requests
+axios.interceptors.request.use((config) => {
+  console.log('API Request:', config.method.toUpperCase(), config.url)
+  return config
+})
+
+axios.interceptors.response.use(
+  (response) => {
+    console.log('API Response:', response.status, response.config.url)
+    return response
+  },
+  (error) => {
+    console.error('API Error:', error.config?.method.toUpperCase(), error.config?.url, error.response?.status, error.message)
+    return Promise.reject(error)
+  }
+)
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
@@ -28,11 +49,25 @@ export const AuthProvider = ({ children }) => {
     return data
   }
 
+  // 2-STEP VERIFICATION FEATURE — Register sends code to email
   const register = async (formData) => {
     const { data } = await axios.post('/api/auth/register', formData)
+    // Return user info (not logged in yet, needs verification)
+    return data
+  }
+
+  // 2-STEP VERIFICATION FEATURE — Verify code and complete registration
+  const verifyCode = async (email, code) => {
+    const { data } = await axios.post('/api/auth/verify-code', { email, code })
     setUser(data)
     localStorage.setItem('stayspaceUser', JSON.stringify(data))
     axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
+    return data
+  }
+
+  // 2-STEP VERIFICATION FEATURE — Resend verification code
+  const resendCode = async (email) => {
+    const { data } = await axios.post('/api/auth/resend-code', { email })
     return data
   }
 
@@ -67,7 +102,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, loading, getWishlist, addToWishlist, removeFromWishlist }}>
+    <AuthContext.Provider value={{ user, login, register, verifyCode, resendCode, logout, updateUser, loading, getWishlist, addToWishlist, removeFromWishlist }}>
       {children}
     </AuthContext.Provider>
   )

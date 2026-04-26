@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const { protect } = require('../middleware/authMiddleware');
-const { registerUser, loginUser, updateProfile } = require('../controllers/authController');
+const { registerUser, verifyEmailCode, resendVerificationCode, loginUser, updateProfile } = require('../controllers/authController');
 
 // Validation rules
 const registerValidation = [
@@ -19,7 +19,16 @@ const loginValidation = [
 ];
 
 // @route   POST /api/auth/register
+// 2-STEP VERIFICATION FEATURE — Step 1: Register user and send code
 router.post('/register', registerValidation, registerUser);
+
+// @route   POST /api/auth/verify-code
+// 2-STEP VERIFICATION FEATURE — Step 2: Verify email code
+router.post('/verify-code', verifyEmailCode);
+
+// @route   POST /api/auth/resend-code
+// 2-STEP VERIFICATION FEATURE — Resend verification code
+router.post('/resend-code', resendVerificationCode);
 
 // @route   POST /api/auth/login
 router.post('/login', loginValidation, loginUser);
