@@ -66,7 +66,12 @@ app.use('/api/calendar', require('./routes/calendar'));
 const frontendDistPath = path.join(__dirname, '../frontend/dist');
 const fs = require('fs');
 
+console.log('Checking for frontend dist at:', frontendDistPath);
+console.log('Frontend dist exists:', fs.existsSync(frontendDistPath));
+console.log('Backend dir:', __dirname);
+
 if (fs.existsSync(frontendDistPath)) {
+  console.log('Serving frontend static files from:', frontendDistPath);
   app.use(express.static(frontendDistPath));
   
   // Serve index.html for all non-API routes (SPA routing)
@@ -75,8 +80,12 @@ if (fs.existsSync(frontendDistPath)) {
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ message: 'API endpoint not found' });
     }
+    console.log('Serving index.html for route:', req.path);
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
+} else {
+  console.warn('Frontend dist folder not found at:', frontendDistPath);
+  console.warn('Available files in parent:', fs.readdirSync(path.join(__dirname, '..')));
 }
 
 // MongoDB Connection
