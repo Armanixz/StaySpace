@@ -75,10 +75,10 @@ if (fs.existsSync(frontendDistPath)) {
   app.use(express.static(frontendDistPath));
   
   // Serve index.html for all non-API routes (SPA routing)
-  app.get('*', (req, res) => {
+  app.use((req, res, next) => {
     // Don't serve index.html for API requests
     if (req.path.startsWith('/api')) {
-      return res.status(404).json({ message: 'API endpoint not found' });
+      return next();
     }
     console.log('Serving index.html for route:', req.path);
     res.sendFile(path.join(frontendDistPath, 'index.html'));
