@@ -5,9 +5,21 @@ const AuthContext = createContext()
 
 // Configure axios base URL for backend
 // In development with Vite proxy, we don't need to set a full URL - just use /api
-// In production, use the API URL from env
+// In production, use the API URL from env or derive from current location
 if (import.meta.env.PROD) {
-  axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+  // Use env variable if set, otherwise replace frontend domain with backend domain
+  // For Render: https://stayspace-gf6a.onrender.com -> https://stayspace-backend.onrender.com
+  let apiUrl = import.meta.env.VITE_API_URL
+  if (!apiUrl || apiUrl === 'http://localhost:5000') {
+    const currentUrl = window.location.origin
+    // If it's our Render frontend, construct the backend URL
+    if (currentUrl.includes('render.com')) {
+      apiUrl = currentUrl.replace('stayspace-gf6a', 'stayspace-backend')
+    } else {
+      apiUrl = 'http://localhost:5000'
+    }
+  }
+  axios.defaults.baseURL = apiUrl
 }
 
 // Add debug logging for all axios requests
