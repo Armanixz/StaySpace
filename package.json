@@ -1,0 +1,17 @@
+{
+  "name": "stayspace",
+  "version": "1.0.0",
+  "description": "StaySpace - Property Rental Platform",
+  "main": "backend/server.js",
+  "private": true,
+  "scripts": {
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm install && npm run build",
+    "seed": "cd backend && npm run seed"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

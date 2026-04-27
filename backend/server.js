@@ -5,6 +5,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 dotenv.config();
 
@@ -59,6 +60,24 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/payments', require('./routes/payment'));
 // #googleCalendar - Google Calendar OAuth routes
 app.use('/api/calendar', require('./routes/calendar'));
+
+// Serve static frontend files in production
+// Check if frontend dist exists
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
+const fs = require('fs');
+
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  
+  // Serve index.html for all non-API routes (SPA routing)
+  app.get('*', (req, res) => {
+    // Don't serve index.html for API requests
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ message: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
 
 // MongoDB Connection
 mongoose
