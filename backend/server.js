@@ -44,6 +44,21 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// #paymentGateway - Set CSP headers to allow Stripe
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "frame-src https://js.stripe.com https://m.stripe.com; " +
+    "connect-src 'self' https://api.stripe.com https://m.stripe.com https://js.stripe.com; " +
+    "img-src 'self' data: https:"
+  );
+  next();
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
